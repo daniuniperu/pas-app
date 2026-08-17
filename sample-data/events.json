@@ -1,0 +1,60 @@
+[
+  {
+    "comment": "First endorsement — increases annual premium",
+    "type": "endorsement.requested",
+    "http": "POST /api/policies/POL-1001/endorsements",
+    "body": {
+      "idempotency_key": "END-2001",
+      "effective_date": "2026-07-01",
+      "new_annual_premium_cents": 144000,
+      "reason": "Water-shutoff discount removed"
+    }
+  },
+  {
+    "comment": "Exact duplicate of END-2001 — returns original result, no side-effects",
+    "type": "endorsement.requested",
+    "http": "POST /api/policies/POL-1001/endorsements",
+    "body": {
+      "idempotency_key": "END-2001",
+      "effective_date": "2026-07-01",
+      "new_annual_premium_cents": 144000,
+      "reason": "Water-shutoff discount removed"
+    }
+  },
+  {
+    "comment": "Valid payment — covers the endorsement billing document",
+    "type": "payment.received",
+    "http": "POST /api/policies/POL-1001/payments",
+    "body": {
+      "idempotency_key": "PAY-9001",
+      "external_payment_id": "PAY-9001",
+      "amount_cents": 12099,
+      "currency": "USD",
+      "received_at": "2026-07-03T18:30:00Z"
+    }
+  },
+  {
+    "comment": "Exact duplicate of PAY-9001 — returns original result",
+    "type": "payment.received",
+    "http": "POST /api/policies/POL-1001/payments",
+    "body": {
+      "idempotency_key": "PAY-9001",
+      "external_payment_id": "PAY-9001",
+      "amount_cents": 12099,
+      "currency": "USD",
+      "received_at": "2026-07-03T18:30:00Z"
+    }
+  },
+  {
+    "comment": "Wrong-currency payment — rejected atomically with 422",
+    "type": "payment.received",
+    "http": "POST /api/policies/POL-1001/payments",
+    "body": {
+      "idempotency_key": "PAY-9002",
+      "external_payment_id": "PAY-9002",
+      "amount_cents": 5000,
+      "currency": "EUR",
+      "received_at": "2026-07-04T10:00:00Z"
+    }
+  }
+]

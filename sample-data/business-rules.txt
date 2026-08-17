@@ -1,0 +1,49 @@
+Business rules for the Policy Administration System (PAS)
+==========================================================
+
+MONEY
+-----
+- All money is stored and calculated as integer cents (no floats in financial logic).
+- Amounts are displayed as $X.XX for human readability only.
+
+PRORATION (mid-term endorsement)
+---------------------------------
+  term_days      = term_end - term_start (calendar days)
+  remaining_days = term_end - effective_date (calendar days)
+  delta_cents    = round_half_away_from_0(
+                     (new_annual_premium_cents - old_annual_premium_cents)
+                     * remaining_days / term_days
+                   )
+
+  Example (from spec):
+    old = 120 000 cents, new = 144 000 cents
+    term_days = 365 (2026-01-01 → 2027-01-01)
+    remaining_days = 184 (2026-07-01 → 2027-01-01)
+    delta = round_half_away_from_0(24 000 × 184 / 365)
+          = round_half_away_from_0(12 098.63…)
+          = 12 099 cents
+
+DOUBLE-ENTRY LEDGER
+--------------------
+  Endorsement (positive delta):  DR premium_receivable  CR written_premium
+  Endorsement (negative delta):  DR written_premium     CR premium_receivable
+  Payment received:              DR cash                CR premium_receivable
+
+  Every financial mutation writes exactly one ledger_transaction with two
+  ledger_entries (debit + credit) inside a single SQLite transaction.
+  sum(debits) must equal sum(credits) for every transaction.
+
+IDEMPOTENCY
+-----------
+  Same idempotency_key + same canonical payload → return original result, no new DB rows.
+  Same idempotency_key + different payload       → 409 Conflict.
+  Wrong-currency payment                         → 422 Unprocessable, atomic reject.
+
+POLICY HISTORY
+--------------
+  Events are append-only (no UPDATE or DELETE on policy_events).
+  Each event carries:
+    canonical_payload  — sorted JSON of event fields
+    previous_hash      — event_hash of the preceding event (genesis = 64 zeros)
+    event_hash         — SHA-256(canonical_payload + "|" + previous_hash)
+  The /history/verify endpoint replays the chain and reports tampering.
