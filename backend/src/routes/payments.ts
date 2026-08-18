@@ -218,7 +218,7 @@ router.post("/", (req: Request, res: Response) => {
     const msg = err instanceof Error ? err.message : String(err);
     // SQLite UNIQUE violation on external_payment_id — same upstream payment
     // arrived with a different idempotency key (different caller / system).
-    if (msg.includes("uq_payments_external_payment_id")) {
+    if (msg.includes("payments.external_payment_id")) {
       return res.status(409).json({
         error: "Duplicate external payment",
         detail: `external_payment_id "${external_payment_id}" was already recorded under a different idempotency key`,
