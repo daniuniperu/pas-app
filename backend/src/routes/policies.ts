@@ -49,12 +49,29 @@ router.get("/", (req: Request, res: Response) => {
     )
     .all(policyId) as PaymentRow[];
 
-  const pendingRow = db
+  // Open balance = net premium_receivable from the ledger (DR − CR).
+  // This correctly reflects partial payments: a $60 payment against a $180.82
+  // billing doc reduces the balance to $120.82 without needing to fully close
+  // the billing document.
+  const receivableDebits = db
     .prepare(
-      "SELECT COALESCE(SUM(amount_cents), 0) AS total FROM billing_documents WHERE policy_id = ? AND status = 'pending'"
+      `SELECT COALESCE(SUM(le.amount_cents), 0) AS total
+       FROM ledger_entries le
+       JOIN ledger_transactions lt ON lt.id = le.ledger_transaction_id
+       WHERE lt.policy_id = ? AND le.account = 'premium_receivable' AND le.entry_type = 'debit'`
     )
     .get(policyId) as SumRow;
-  const openBalanceCents: number = pendingRow.total;
+
+  const receivableCredits = db
+    .prepare(
+      `SELECT COALESCE(SUM(le.amount_cents), 0) AS total
+       FROM ledger_entries le
+       JOIN ledger_transactions lt ON lt.id = le.ledger_transaction_id
+       WHERE lt.policy_id = ? AND le.account = 'premium_receivable' AND le.entry_type = 'credit'`
+    )
+    .get(policyId) as SumRow;
+
+  const openBalanceCents: number = Math.max(0, receivableDebits.total - receivableCredits.total);
 
   // --- Rich endorsements array: each endorsement with its billing_document nested ---
   const endorsementKeys = [
