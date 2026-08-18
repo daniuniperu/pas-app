@@ -94,8 +94,8 @@ router.get("/", (req: Request, res: Response) => {
       )
       .all(tx.id) as LedgerEntryAggRow[];
 
-    const debits = entries.find((e: any) => e.entry_type === "debit")?.total ?? 0;
-    const credits = entries.find((e: any) => e.entry_type === "credit")?.total ?? 0;
+    const debits = entries.find((e) => e.entry_type === "debit")?.total ?? 0;
+    const credits = entries.find((e) => e.entry_type === "credit")?.total ?? 0;
 
     return {
       id: tx.id,
@@ -108,7 +108,7 @@ router.get("/", (req: Request, res: Response) => {
   });
 
   const allBalanced =
-    ledgerSummary.length === 0 || ledgerSummary.every((tx: any) => tx.balanced);
+    ledgerSummary.length === 0 || ledgerSummary.every((tx) => tx.balanced);
 
   // --- Inline history verification ---
   const events = db
