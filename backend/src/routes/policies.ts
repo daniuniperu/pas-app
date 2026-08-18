@@ -1,5 +1,14 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/connection";
+import {
+  PolicyRow,
+  BillingDocumentRow,
+  PaymentRow,
+  LedgerTransactionRow,
+  LedgerEntryAggRow,
+  RejectedEventRow,
+  SumRow,
+} from "../db/row-types";
 import { verifyChain, StoredEvent } from "../domain/hashChain";
 
 const router = Router({ mergeParams: true });
@@ -23,7 +32,7 @@ router.get("/", (req: Request, res: Response) => {
 
   const policy = db
     .prepare("SELECT * FROM policies WHERE id = ?")
-    .get(policyId) as any;
+    .get(policyId) as PolicyRow | undefined;
 
   if (!policy) {
     return res.status(404).json({ error: `Policy ${policyId} not found` });
@@ -33,26 +42,25 @@ router.get("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT * FROM billing_documents WHERE policy_id = ? ORDER BY created_at ASC"
     )
-    .all(policyId) as any[];
+    .all(policyId) as BillingDocumentRow[];
 
   const payments = db
     .prepare(
       "SELECT * FROM payments WHERE policy_id = ? ORDER BY created_at ASC"
     )
-    .all(policyId) as any[];
+    .all(policyId) as PaymentRow[];
 
   const rejectedEvents = db
     .prepare(
       "SELECT * FROM rejected_events WHERE policy_id = ? ORDER BY created_at ASC"
     )
-    .all(policyId) as any[];
+    .all(policyId) as RejectedEventRow[];
 
-  // Open balance = sum of pending billing documents
   const pendingRow = db
     .prepare(
       "SELECT COALESCE(SUM(amount_cents), 0) AS total FROM billing_documents WHERE policy_id = ? AND status = 'pending'"
     )
-    .get(policyId) as any;
+    .get(policyId) as SumRow;
   const openBalanceCents: number = pendingRow.total;
 
   // --- Rich endorsements array: each endorsement with its billing_document nested ---
@@ -84,14 +92,14 @@ router.get("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT * FROM ledger_transactions WHERE policy_id = ? ORDER BY created_at ASC"
     )
-    .all(policyId) as any[];
+    .all(policyId) as LedgerTransactionRow[];
 
-  const ledgerSummary = ledgerTxs.map((tx: any) => {
+  const ledgerSummary = ledgerTxs.map((tx) => {
     const entries = db
       .prepare(
         "SELECT entry_type, SUM(amount_cents) AS total FROM ledger_entries WHERE ledger_transaction_id = ? GROUP BY entry_type"
       )
-      .all(tx.id) as any[];
+      .all(tx.id) as LedgerEntryAggRow[];
 
     const debits = entries.find((e: any) => e.entry_type === "debit")?.total ?? 0;
     const credits = entries.find((e: any) => e.entry_type === "credit")?.total ?? 0;

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/connection";
+import { PolicyRow } from "../db/row-types";
 import { verifyChain, StoredEvent } from "../domain/hashChain";
 
 const router = Router({ mergeParams: true });
@@ -16,7 +17,7 @@ router.get("/", (req: Request, res: Response) => {
 
   const policy = db
     .prepare("SELECT id FROM policies WHERE id = ?")
-    .get(policyId) as any;
+    .get(policyId) as Pick<PolicyRow, "id"> | undefined;
 
   if (!policy) {
     return res.status(404).json({ error: `Policy ${policyId} not found` });

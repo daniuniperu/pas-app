@@ -1,6 +1,13 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/connection";
 import {
+  PolicyRow,
+  PolicyEventRow,
+  PaymentRow,
+  BillingDocumentRow,
+  LastInsertRow,
+} from "../db/row-types";
+import {
   canonicalPayload,
   computeEventHash,
   GENESIS_HASH,
@@ -62,7 +69,7 @@ router.post("/", (req: Request, res: Response) => {
   // --- Load policy ---
   const policy = db
     .prepare("SELECT * FROM policies WHERE id = ?")
-    .get(policyId) as any;
+    .get(policyId) as PolicyRow | undefined;
 
   if (!policy) {
     return res.status(404).json({ error: `Policy ${policyId} not found` });
@@ -91,7 +98,7 @@ router.post("/", (req: Request, res: Response) => {
   // --- Idempotency check ---
   const existing = db
     .prepare("SELECT * FROM payments WHERE idempotency_key = ?")
-    .get(idempotency_key) as any;
+    .get(idempotency_key) as PaymentRow | undefined;
 
   if (existing) {
     // Build canonical incoming payload for comparison
@@ -148,7 +155,7 @@ router.post("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT event_hash, sequence_number FROM policy_events WHERE policy_id = ? ORDER BY sequence_number DESC LIMIT 1"
     )
-    .get(policyId) as any;
+    .get(policyId) as Pick<PolicyEventRow, "event_hash" | "sequence_number"> | undefined;
 
   const previousHash = lastEvent ? lastEvent.event_hash : GENESIS_HASH;
   const nextSeq = lastEvent ? lastEvent.sequence_number + 1 : 1;
@@ -160,7 +167,7 @@ router.post("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT * FROM billing_documents WHERE policy_id = ? AND status = 'pending' ORDER BY created_at ASC LIMIT 1"
     )
-    .get(policyId) as any;
+    .get(policyId) as BillingDocumentRow | undefined;
 
   const insertAll = db.transaction(() => {
     // 1. Insert payment record
@@ -178,7 +185,7 @@ router.post("/", (req: Request, res: Response) => {
 
     const inserted = db
       .prepare("SELECT last_insert_rowid() as id")
-      .get() as any;
+      .get() as LastInsertRow;
 
     // 2. Update billing document if payment covers it
     if (pendingBill && amount_cents >= pendingBill.amount_cents) {
@@ -225,7 +232,7 @@ router.post("/", (req: Request, res: Response) => {
 
   const saved = db
     .prepare("SELECT * FROM payments WHERE rowid = ?")
-    .get(paymentRowId) as any;
+    .get(paymentRowId) as PaymentRow | undefined;
 
   return res.status(201).json({
     idempotency_result: "created",

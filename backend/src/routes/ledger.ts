@@ -1,5 +1,10 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/connection";
+import {
+  PolicyRow,
+  LedgerTransactionRow,
+  LedgerEntryRow,
+} from "../db/row-types";
 
 const router = Router({ mergeParams: true });
 
@@ -15,7 +20,7 @@ router.get("/", (req: Request, res: Response) => {
 
   const policy = db
     .prepare("SELECT id FROM policies WHERE id = ?")
-    .get(policyId) as any;
+    .get(policyId) as Pick<PolicyRow, "id"> | undefined;
 
   if (!policy) {
     return res.status(404).json({ error: `Policy ${policyId} not found` });
@@ -25,25 +30,25 @@ router.get("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT * FROM ledger_transactions WHERE policy_id = ? ORDER BY created_at ASC"
     )
-    .all(policyId) as any[];
+    .all(policyId) as LedgerTransactionRow[];
 
   let totalDebits = 0;
   let totalCredits = 0;
   let allBalanced = true;
 
-  const txDetails = transactions.map((tx: any) => {
+  const txDetails = transactions.map((tx) => {
     const entries = db
       .prepare(
         "SELECT * FROM ledger_entries WHERE ledger_transaction_id = ? ORDER BY entry_type ASC"
       )
-      .all(tx.id) as any[];
+      .all(tx.id) as LedgerEntryRow[];
 
     const txDebits = entries
-      .filter((e: any) => e.entry_type === "debit")
-      .reduce((s: number, e: any) => s + e.amount_cents, 0);
+      .filter((e) => e.entry_type === "debit")
+      .reduce((s, e) => s + e.amount_cents, 0);
     const txCredits = entries
-      .filter((e: any) => e.entry_type === "credit")
-      .reduce((s: number, e: any) => s + e.amount_cents, 0);
+      .filter((e) => e.entry_type === "credit")
+      .reduce((s, e) => s + e.amount_cents, 0);
 
     totalDebits += txDebits;
     totalCredits += txCredits;
@@ -59,7 +64,7 @@ router.get("/", (req: Request, res: Response) => {
       debits_cents: txDebits,
       credits_cents: txCredits,
       balanced,
-      entries: entries.map((e: any) => ({
+      entries: entries.map((e) => ({
         id: e.id,
         account: e.account,
         entry_type: e.entry_type,

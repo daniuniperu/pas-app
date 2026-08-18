@@ -1,5 +1,10 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/connection";
+import {
+  PolicyRow,
+  PolicyEventRow,
+  BillingDocumentRow,
+} from "../db/row-types";
 import { calculateProratedDelta } from "../domain/proration";
 import {
   canonicalPayload,
@@ -54,7 +59,7 @@ router.post("/", (req: Request, res: Response) => {
   // --- Load policy ---
   const policy = db
     .prepare("SELECT * FROM policies WHERE id = ?")
-    .get(policyId) as any;
+    .get(policyId) as PolicyRow | undefined;
 
   if (!policy) {
     return res.status(404).json({ error: `Policy ${policyId} not found` });
@@ -68,7 +73,7 @@ router.post("/", (req: Request, res: Response) => {
   // --- Idempotency check ---
   const existingEvent = db
     .prepare("SELECT * FROM policy_events WHERE idempotency_key = ?")
-    .get(idempotency_key) as any;
+    .get(idempotency_key) as PolicyEventRow | undefined;
 
   if (existingEvent) {
     // Same key — compare normalized payload
@@ -91,7 +96,7 @@ router.post("/", (req: Request, res: Response) => {
     // Exact duplicate — return original billing document
     const billingDoc = db
       .prepare("SELECT * FROM billing_documents WHERE endorsement_idem_key = ?")
-      .get(idempotency_key) as any;
+      .get(idempotency_key) as BillingDocumentRow | undefined;
 
     return res.status(200).json({
       idempotency_result: "duplicate_ignored",
@@ -142,7 +147,7 @@ router.post("/", (req: Request, res: Response) => {
     .prepare(
       "SELECT event_hash, sequence_number FROM policy_events WHERE policy_id = ? ORDER BY sequence_number DESC LIMIT 1"
     )
-    .get(policyId) as any;
+    .get(policyId) as Pick<PolicyEventRow, "event_hash" | "sequence_number"> | undefined;
 
   const previousHash = lastEvent ? lastEvent.event_hash : GENESIS_HASH;
   const nextSeq = lastEvent ? lastEvent.sequence_number + 1 : 1;
