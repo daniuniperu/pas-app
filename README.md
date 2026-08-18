@@ -4,12 +4,12 @@ A focused take-home implementation of a homeowners-insurance Policy Administrati
 
 ## What's built
 
-| Layer | Choice | Why |
-|---|---|---|
-| Backend runtime | Node.js + TypeScript + Express | Straightforward, low boilerplate |
-| Database | SQLite via `better-sqlite3` | Zero-setup, synchronous API, great for local dev |
-| Frontend | React + Vite + TypeScript | Minimal modern setup, proxies to API |
-| Tests | Vitest | Fast, TypeScript-native, no extra config |
+| Layer           | Choice                         | Why                                              |
+| --------------- | ------------------------------ | ------------------------------------------------ |
+| Backend runtime | Node.js + TypeScript + Express | Straightforward, low boilerplate                 |
+| Database        | SQLite via `better-sqlite3`    | Zero-setup, synchronous API, great for local dev |
+| Frontend        | React + Vite + TypeScript      | Minimal modern setup, proxies to API             |
+| Tests           | Vitest                         | Fast, TypeScript-native, no extra config         |
 
 ---
 
@@ -120,14 +120,14 @@ curl -s http://localhost:3001/api/policies/POL-1001/history/verify | jq
 
 Six tables live in `backend/migrations/001_initial.sql`:
 
-| Table | Purpose |
-|---|---|
-| `policies` | Master policy record; `annual_premium_cents` updated on endorsement |
-| `policy_events` | Append-only, hash-chained log of every endorsement and payment event |
-| `billing_documents` | One document per endorsement; status transitions `pending → paid` |
-| `payments` | Received-payment records (data ingestion only) |
-| `ledger_transactions` | Groups a balanced set of debit+credit entries |
-| `ledger_entries` | Individual DR/CR lines; always two per transaction |
+| Table                 | Purpose                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `policies`            | Master policy record; `annual_premium_cents` updated on endorsement  |
+| `policy_events`       | Append-only, hash-chained log of every endorsement and payment event |
+| `billing_documents`   | One document per endorsement; status transitions `pending → paid`    |
+| `payments`            | Received-payment records (data ingestion only)                       |
+| `ledger_transactions` | Groups a balanced set of debit+credit entries                        |
+| `ledger_entries`      | Individual DR/CR lines; always two per transaction                   |
 
 All money columns are `INTEGER NOT NULL` (no `REAL`/`FLOAT`).
 
@@ -149,13 +149,13 @@ delta_cents    = round_half_away_from_zero(
 
 ### Double-entry accounting
 
-| Event | Debit | Credit |
-|---|---|---|
-| Endorsement (positive delta) | `premium_receivable` | `written_premium` |
-| Endorsement (negative delta) | `written_premium` | `premium_receivable` |
-| Payment received | `cash` | `premium_receivable` |
+| Event                        | Debit                | Credit               |
+| ---------------------------- | -------------------- | -------------------- |
+| Endorsement (positive delta) | `premium_receivable` | `written_premium`    |
+| Endorsement (negative delta) | `written_premium`    | `premium_receivable` |
+| Payment received             | `cash`               | `premium_receivable` |
 
-Every write is wrapped in a single SQLite transaction — no partial writes possible.
+Every successful financial mutation is executed inside a single SQLite transaction.
 
 ### Idempotency
 
@@ -176,12 +176,12 @@ First event's `previous_hash` is 64 zeros (genesis sentinel).
 
 ## Tests (29 total)
 
-| Suite | What it covers |
-|---|---|
-| `proration.test.ts` | `roundHalfAwayFromZero`, `daysBetween`, 7 proration scenarios including the spec example |
-| `history.test.ts` | Hash-chain verification — valid chain, tampered payload, broken link, canonical determinism |
-| `ledger.test.ts` | Balanced debit/credit invariant for endorsements and payments, account selection, zero-amount guard |
-| `payments.test.ts` | Duplicate endorsement/payment detection, wrong-currency atomic rejection, case-insensitive currency |
+| Suite               | What it covers                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `proration.test.ts` | `roundHalfAwayFromZero`, `daysBetween`, 7 proration scenarios including the spec example            |
+| `history.test.ts`   | Hash-chain verification — valid chain, tampered payload, broken link, canonical determinism         |
+| `ledger.test.ts`    | Balanced debit/credit invariant for endorsements and payments, account selection, zero-amount guard |
+| `payments.test.ts`  | Duplicate endorsement/payment detection, wrong-currency atomic rejection, case-insensitive currency |
 
 ---
 

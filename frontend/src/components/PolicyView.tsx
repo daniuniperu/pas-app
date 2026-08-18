@@ -121,7 +121,7 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
         <ul className="timeline">
           {policy.endorsements.map((e) => (
             <li key={`end-${e.id}`}>
-              <div className="tl-line"><div className="tl-dot" style={{ background: "#f59e0b" }} /><div className="tl-bar" /></div>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#be185d" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
                 <div className="tl-label">Endorsement Applied · {e.id}</div>
                 <div className="tl-detail">
@@ -139,20 +139,20 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
           ))}
           {policy.payments.map((p) => (
             <li key={`pay-${p.id}`}>
-              <div className="tl-line"><div className="tl-dot" style={{ background: "#22c55e" }} /><div className="tl-bar" /></div>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#15803d" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
                 <div className="tl-label">Payment Received · {p.external_payment_id}</div>
                 <div className="tl-detail">
                   {formatCents(p.amount_cents, p.currency)} · {p.currency} ·{" "}
                   <span className="pill paid" style={{ fontSize: 11 }}>{p.status}</span>
-                  <span style={{ color: "#475569" }}> · {new Date(p.received_at).toLocaleString()}</span>
+                  <span style={{ color: "#a1a1aa" }}> · {new Date(p.received_at).toLocaleString()}</span>
                 </div>
               </div>
             </li>
           ))}
           {policy.ledger.transactions.map((tx) => (
             <li key={`ltx-${tx.id}`}>
-              <div className="tl-line"><div className="tl-dot" style={{ background: "#3b82f6" }} /><div className="tl-bar" /></div>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#6d28d9" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
                 <div className="tl-label">Ledger Tx · {tx.id}</div>
                 <div className="tl-detail">
@@ -166,7 +166,7 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
           ))}
           {policy.endorsements.length === 0 && policy.payments.length === 0 && (
             <li>
-              <div className="tl-line"><div className="tl-dot" style={{ background: "#1e2433" }} /></div>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#e4e4e7" }} /></div>
               <div className="tl-body"><div className="tl-detail">No activity yet</div></div>
             </li>
           )}
@@ -181,13 +181,13 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
             <span className={`pill ${ledger.balanced ? "balanced" : "error"}`}>
               {ledger.balanced ? "All transactions balanced" : "UNBALANCED — investigate"}
             </span>
-            <span style={{ color: "#475569", fontSize: 12, marginLeft: 10 }}>
+            <span style={{ color: "#a1a1aa", fontSize: 12, marginLeft: 10 }}>
               Total DR: {formatCents(ledger.total_debits_cents, policy.currency)} · Total CR: {formatCents(ledger.total_credits_cents, policy.currency)}
             </span>
           </div>
           {ledger.transactions.map((tx) => (
             <div key={tx.id} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: "#60a5fa", marginBottom: 6, fontWeight: 600 }}>
+              <div style={{ fontSize: 12, color: "#6d28d9", marginBottom: 6, fontWeight: 600 }}>
                 {tx.id} · {tx.source_type} · {tx.source_id}
               </div>
               <table className="tbl">
