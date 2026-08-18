@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db";
+import { verifyChain, StoredEvent } from "../services/hashChain";
 
 const router = Router({ mergeParams: true });
 
@@ -8,11 +9,13 @@ const router = Router({ mergeParams: true });
  *
  * Returns the full current state of a policy including:
  *   - policy fields
- *   - billing documents
- *   - payments (applied)
+ *   - endorsements (rich array with nested billing_document)
+ *   - payments with status
  *   - open balance in cents
- *   - ledger summary
- *   - suggested action
+ *   - ledger summary (balanced proof)
+ *   - history verification result (inline)
+ *   - rejected_events (failed payment attempts)
+ *   - suggested next action
  */
 router.get("/", (req: Request, res: Response) => {
   const { policyId } = req.params;
@@ -38,6 +41,12 @@ router.get("/", (req: Request, res: Response) => {
     )
     .all(policyId) as any[];
 
+  const rejectedEvents = db
+    .prepare(
+      "SELECT * FROM rejected_events WHERE policy_id = ? ORDER BY created_at ASC"
+    )
+    .all(policyId) as any[];
+
   // Open balance = sum of pending billing documents
   const pendingRow = db
     .prepare(
@@ -46,8 +55,8 @@ router.get("/", (req: Request, res: Response) => {
     .get(policyId) as any;
   const openBalanceCents: number = pendingRow.total;
 
-  // Endorsement IDs from billing docs
-  const endorsementIds = [
+  // --- Rich endorsements array: each endorsement with its billing_document nested ---
+  const endorsementKeys = [
     ...new Set(
       billingDocs
         .filter((d) => d.endorsement_idem_key)
@@ -55,7 +64,22 @@ router.get("/", (req: Request, res: Response) => {
     ),
   ];
 
-  // Ledger summary
+  const endorsements = endorsementKeys.map((key) => {
+    const doc = billingDocs.find((d) => d.endorsement_idem_key === key);
+    return {
+      id: key,
+      billing_document: doc
+        ? {
+            id: doc.id,
+            type: doc.type,
+            amount_cents: doc.amount_cents,
+            status: doc.status,
+          }
+        : null,
+    };
+  });
+
+  // --- Ledger summary ---
   const ledgerTxs = db
     .prepare(
       "SELECT * FROM ledger_transactions WHERE policy_id = ? ORDER BY created_at ASC"
@@ -69,13 +93,13 @@ router.get("/", (req: Request, res: Response) => {
       )
       .all(tx.id) as any[];
 
-    const debits = entries.find((e) => e.entry_type === "debit")?.total ?? 0;
-    const credits = entries.find((e) => e.entry_type === "credit")?.total ?? 0;
+    const debits = entries.find((e: any) => e.entry_type === "debit")?.total ?? 0;
+    const credits = entries.find((e: any) => e.entry_type === "credit")?.total ?? 0;
 
     return {
       id: tx.id,
+      source: tx.source_id,
       source_type: tx.source_type,
-      source_id: tx.source_id,
       debits_cents: debits,
       credits_cents: credits,
       balanced: debits === credits,
@@ -85,30 +109,35 @@ router.get("/", (req: Request, res: Response) => {
   const allBalanced =
     ledgerSummary.length === 0 || ledgerSummary.every((tx: any) => tx.balanced);
 
-  // Suggested action
+  // --- Inline history verification ---
+  const events = db
+    .prepare(
+      `SELECT sequence_number, event_type, payload, previous_hash, event_hash
+       FROM policy_events WHERE policy_id = ? ORDER BY sequence_number ASC`
+    )
+    .all(policyId) as StoredEvent[];
+
+  const historyResult = verifyChain(events);
+
+  // --- Suggested action ---
   let suggestedAction = "No action required";
   if (openBalanceCents > 0) {
     suggestedAction = `Outstanding balance of ${openBalanceCents} cents — payment required`;
   } else if (!allBalanced) {
     suggestedAction = "Ledger is unbalanced — investigate accounting entries";
+  } else if (!historyResult.valid) {
+    suggestedAction = "History chain is invalid — audit required";
   }
 
   return res.status(200).json({
     policy_id: policy.id,
-    homeowner_id: policy.homeowner_id,
     status: policy.status,
-    term_start: policy.term_start,
-    term_end: policy.term_end,
     annual_premium_cents: policy.annual_premium_cents,
     currency: policy.currency,
-    endorsement_ids: endorsementIds,
-    billing_documents: billingDocs.map((d) => ({
-      id: d.id,
-      type: d.type,
-      amount_cents: d.amount_cents,
-      status: d.status,
-      endorsement_id: d.endorsement_idem_key,
-    })),
+    homeowner_id: policy.homeowner_id,
+    term_start: policy.term_start,
+    term_end: policy.term_end,
+    endorsements,
     payments: payments.map((p) => ({
       id: p.id,
       external_payment_id: p.external_payment_id,
@@ -120,9 +149,19 @@ router.get("/", (req: Request, res: Response) => {
     open_balance_cents: openBalanceCents,
     ledger: {
       balanced: allBalanced,
-      transaction_count: ledgerSummary.length,
       transactions: ledgerSummary,
     },
+    history: {
+      valid: historyResult.valid,
+      event_count: historyResult.event_count,
+      ...(historyResult.failedAt !== undefined && { failed_at: historyResult.failedAt }),
+    },
+    rejected_events: rejectedEvents.map((r) => ({
+      id: r.idempotency_key,
+      external_payment_id: r.external_payment_id,
+      reason: r.reason,
+      created_at: r.created_at,
+    })),
     suggested_action: suggestedAction,
   });
 });

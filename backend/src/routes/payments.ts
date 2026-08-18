@@ -6,7 +6,7 @@ import {
   GENESIS_HASH,
 } from "../services/hashChain";
 import { insertLedgerTransaction } from "../services/accounting";
-import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 const router = Router({ mergeParams: true });
 
@@ -70,6 +70,18 @@ router.post("/", (req: Request, res: Response) => {
 
   // --- Wrong currency check (before idempotency so we fail atomically) ---
   if (currency.toUpperCase() !== policy.currency.toUpperCase()) {
+    // Persist the rejection for auditability — surfaced in GET /api/policies
+    db.prepare(
+      `INSERT INTO rejected_events (policy_id, idempotency_key, external_payment_id, reason, payload)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(
+      policyId,
+      idempotency_key,
+      external_payment_id,
+      `currency mismatch: expected ${policy.currency}, got ${currency.toUpperCase()}`,
+      JSON.stringify(body)
+    );
+
     return res.status(422).json({
       error: "Currency mismatch",
       detail: `Policy currency is ${policy.currency}, payment currency is ${currency}`,
@@ -119,7 +131,7 @@ router.post("/", (req: Request, res: Response) => {
     });
   }
 
-  const ledgerTxId = `LTX-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  const ledgerTxId = `LTX-${uuidv4()}`;
 
   // --- Build canonical event payload for hash chain ---
   const eventPayload = canonicalPayload({

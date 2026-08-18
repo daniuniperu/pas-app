@@ -9,6 +9,10 @@ interface Props {
 }
 
 export default function PolicyView({ policy, ledger, history, onRefresh }: Props) {
+  // history comes from both the inline policy.history and the separate /history/verify endpoint
+  const historyValid = policy.history?.valid ?? history?.valid;
+  const historyCount = policy.history?.event_count ?? history?.event_count ?? 0;
+
   return (
     <>
       {/* ── Policy Meta ────────────────────────────────────────────────── */}
@@ -54,13 +58,9 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
           <div className="meta-item">
             <label>History Chain</label>
             <div className="val">
-              {history ? (
-                <span className={`pill ${history.valid ? "valid" : "invalid"}`}>
-                  {history.valid ? `Valid (${history.event_count} events)` : "INVALID"}
-                </span>
-              ) : (
-                <span style={{ color: "#475569", fontSize: 12 }}>loading…</span>
-              )}
+              <span className={`pill ${historyValid ? "valid" : "invalid"}`}>
+                {historyValid ? `Valid (${historyCount} events)` : "INVALID"}
+              </span>
             </div>
           </div>
         </div>
@@ -78,25 +78,67 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
         </div>
       </div>
 
+      {/* ── Endorsements ───────────────────────────────────────────────── */}
+      {policy.endorsements.length > 0 && (
+        <div className="card">
+          <div className="card-title"><span className="dot" />Endorsements</div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Endorsement ID</th>
+                <th>Billing Doc</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {policy.endorsements.map((e) => (
+                <tr key={e.id}>
+                  <td className="mono">{e.id}</td>
+                  <td className="mono">{e.billing_document?.id ?? "—"}</td>
+                  <td className="mono">
+                    {e.billing_document
+                      ? formatCents(e.billing_document.amount_cents, policy.currency)
+                      : "—"}
+                  </td>
+                  <td>
+                    {e.billing_document ? (
+                      <span className={`pill ${e.billing_document.status}`} style={{ fontSize: 11 }}>
+                        {e.billing_document.status}
+                      </span>
+                    ) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* ── Timeline ───────────────────────────────────────────────────── */}
       <div className="card">
         <div className="card-title"><span className="dot" />Activity Timeline</div>
         <ul className="timeline">
-          {policy.billing_documents.map((d) => (
-            <li key={d.id}>
+          {policy.endorsements.map((e) => (
+            <li key={`end-${e.id}`}>
               <div className="tl-line"><div className="tl-dot" style={{ background: "#f59e0b" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
-                <div className="tl-label">Billing Document · {d.id}</div>
+                <div className="tl-label">Endorsement Applied · {e.id}</div>
                 <div className="tl-detail">
-                  {d.type.replace(/_/g, " ")} · {formatCents(d.amount_cents, policy.currency)} ·{" "}
-                  <span className={`pill ${d.status}`} style={{ fontSize: 11 }}>{d.status}</span>
-                  {d.endorsement_id && <span style={{ color: "#475569" }}> · from {d.endorsement_id}</span>}
+                  {e.billing_document
+                    ? `${e.billing_document.type.replace(/_/g, " ")} · ${formatCents(e.billing_document.amount_cents, policy.currency)} · `
+                    : ""}
+                  {e.billing_document && (
+                    <span className={`pill ${e.billing_document.status}`} style={{ fontSize: 11 }}>
+                      {e.billing_document.status}
+                    </span>
+                  )}
                 </div>
               </div>
             </li>
           ))}
           {policy.payments.map((p) => (
-            <li key={p.id}>
+            <li key={`pay-${p.id}`}>
               <div className="tl-line"><div className="tl-dot" style={{ background: "#22c55e" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
                 <div className="tl-label">Payment Received · {p.external_payment_id}</div>
@@ -109,7 +151,7 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
             </li>
           ))}
           {policy.ledger.transactions.map((tx) => (
-            <li key={tx.id}>
+            <li key={`ltx-${tx.id}`}>
               <div className="tl-line"><div className="tl-dot" style={{ background: "#3b82f6" }} /><div className="tl-bar" /></div>
               <div className="tl-body">
                 <div className="tl-label">Ledger Tx · {tx.id}</div>
@@ -122,13 +164,51 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
               </div>
             </li>
           ))}
-          {policy.billing_documents.length === 0 && policy.payments.length === 0 && (
-            <li><div className="tl-line"><div className="tl-dot" style={{ background: "#1e2433" }} /></div>
+          {policy.rejected_events.map((r) => (
+            <li key={`rej-${r.id}`}>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#ef4444" }} /><div className="tl-bar" /></div>
+              <div className="tl-body">
+                <div className="tl-label">
+                  <span className="pill error" style={{ fontSize: 11 }}>Rejected</span>{" "}
+                  Payment · {r.id}
+                </div>
+                <div className="tl-detail">{r.reason}</div>
+              </div>
+            </li>
+          ))}
+          {policy.endorsements.length === 0 && policy.payments.length === 0 && policy.rejected_events.length === 0 && (
+            <li>
+              <div className="tl-line"><div className="tl-dot" style={{ background: "#1e2433" }} /></div>
               <div className="tl-body"><div className="tl-detail">No activity yet</div></div>
             </li>
           )}
         </ul>
       </div>
+
+      {/* ── Rejected Events ────────────────────────────────────────────── */}
+      {policy.rejected_events.length > 0 && (
+        <div className="card">
+          <div className="card-title"><span className="dot" style={{ background: "#ef4444" }} />Rejected Events</div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Idempotency Key</th>
+                <th>External ID</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {policy.rejected_events.map((r) => (
+                <tr key={r.id}>
+                  <td className="mono">{r.id}</td>
+                  <td className="mono">{r.external_payment_id ?? "—"}</td>
+                  <td style={{ color: "#f87171" }}>{r.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── Ledger Detail ──────────────────────────────────────────────── */}
       {ledger && (
@@ -149,11 +229,7 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
               </div>
               <table className="tbl">
                 <thead>
-                  <tr>
-                    <th>Account</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                  </tr>
+                  <tr><th>Account</th><th>Type</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
                   {tx.entries.map((e) => (
@@ -176,17 +252,14 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
           <div className="card-title"><span className="dot" />Event Hash Chain</div>
           <div style={{ marginBottom: 12 }}>
             <span className={`pill ${history.valid ? "valid" : "invalid"}`}>
-              {history.valid ? `Chain valid · ${history.event_count} events` : `Chain INVALID at seq ${history.failedAt}: ${history.reason}`}
+              {history.valid
+                ? `Chain valid · ${history.event_count} events`
+                : `Chain INVALID at seq ${history.failedAt}: ${history.reason}`}
             </span>
           </div>
           <table className="tbl">
             <thead>
-              <tr>
-                <th>#</th>
-                <th>Event Type</th>
-                <th>Prev Hash</th>
-                <th>Event Hash</th>
-              </tr>
+              <tr><th>#</th><th>Event Type</th><th>Prev Hash</th><th>Event Hash</th></tr>
             </thead>
             <tbody>
               {history.events.map((e) => (

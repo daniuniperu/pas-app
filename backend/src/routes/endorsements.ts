@@ -10,7 +10,7 @@ import {
   insertLedgerTransaction,
   endorsementAccounts,
 } from "../services/accounting";
-import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 const router = Router({ mergeParams: true });
 
@@ -121,8 +121,8 @@ router.post("/", (req: Request, res: Response) => {
     return res.status(422).json({ error: err.message });
   }
 
-  const billId = `BILL-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
-  const ledgerTxId = `LTX-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  const billId = `BILL-${uuidv4()}`;
+  const ledgerTxId = `LTX-${uuidv4()}`;
 
   const { debit_account, credit_account, ledger_amount_cents } =
     endorsementAccounts(deltaCents);
