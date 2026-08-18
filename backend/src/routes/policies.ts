@@ -6,7 +6,6 @@ import {
   PaymentRow,
   LedgerTransactionRow,
   LedgerEntryAggRow,
-  RejectedEventRow,
   SumRow,
 } from "../db/row-types";
 import { verifyChain, StoredEvent } from "../domain/hashChain";
@@ -49,12 +48,6 @@ router.get("/", (req: Request, res: Response) => {
       "SELECT * FROM payments WHERE policy_id = ? ORDER BY created_at ASC"
     )
     .all(policyId) as PaymentRow[];
-
-  const rejectedEvents = db
-    .prepare(
-      "SELECT * FROM rejected_events WHERE policy_id = ? ORDER BY created_at ASC"
-    )
-    .all(policyId) as RejectedEventRow[];
 
   const pendingRow = db
     .prepare(
@@ -164,12 +157,6 @@ router.get("/", (req: Request, res: Response) => {
       event_count: historyResult.event_count,
       ...(historyResult.failedAt !== undefined && { failed_at: historyResult.failedAt }),
     },
-    rejected_events: rejectedEvents.map((r) => ({
-      id: r.idempotency_key,
-      external_payment_id: r.external_payment_id,
-      reason: r.reason,
-      created_at: r.created_at,
-    })),
     suggested_action: suggestedAction,
   });
 });

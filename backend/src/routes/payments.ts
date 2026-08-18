@@ -75,20 +75,8 @@ router.post("/", (req: Request, res: Response) => {
     return res.status(404).json({ error: `Policy ${policyId} not found` });
   }
 
-  // --- Wrong currency check (before idempotency so we fail atomically) ---
+  // --- Wrong currency check — fail atomically before any write ---
   if (currency.toUpperCase() !== policy.currency.toUpperCase()) {
-    // Persist the rejection for auditability — surfaced in GET /api/policies
-    db.prepare(
-      `INSERT INTO rejected_events (policy_id, idempotency_key, external_payment_id, reason, payload)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      policyId,
-      idempotency_key,
-      external_payment_id,
-      `currency mismatch: expected ${policy.currency}, got ${currency.toUpperCase()}`,
-      JSON.stringify(body)
-    );
-
     return res.status(422).json({
       error: "Currency mismatch",
       detail: `Policy currency is ${policy.currency}, payment currency is ${currency}`,
@@ -226,8 +214,17 @@ router.post("/", (req: Request, res: Response) => {
   let paymentRowId: number;
   try {
     paymentRowId = insertAll();
-  } catch (err: any) {
-    return res.status(500).json({ error: "Database write failed", detail: err.message });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // SQLite UNIQUE violation on external_payment_id — same upstream payment
+    // arrived with a different idempotency key (different caller / system).
+    if (msg.includes("uq_payments_external_payment_id")) {
+      return res.status(409).json({
+        error: "Duplicate external payment",
+        detail: `external_payment_id "${external_payment_id}" was already recorded under a different idempotency key`,
+      });
+    }
+    return res.status(500).json({ error: "Database write failed", detail: msg });
   }
 
   const saved = db

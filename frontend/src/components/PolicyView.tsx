@@ -164,19 +164,7 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
               </div>
             </li>
           ))}
-          {policy.rejected_events.map((r) => (
-            <li key={`rej-${r.id}`}>
-              <div className="tl-line"><div className="tl-dot" style={{ background: "#ef4444" }} /><div className="tl-bar" /></div>
-              <div className="tl-body">
-                <div className="tl-label">
-                  <span className="pill error" style={{ fontSize: 11 }}>Rejected</span>{" "}
-                  Payment · {r.id}
-                </div>
-                <div className="tl-detail">{r.reason}</div>
-              </div>
-            </li>
-          ))}
-          {policy.endorsements.length === 0 && policy.payments.length === 0 && policy.rejected_events.length === 0 && (
+          {policy.endorsements.length === 0 && policy.payments.length === 0 && (
             <li>
               <div className="tl-line"><div className="tl-dot" style={{ background: "#1e2433" }} /></div>
               <div className="tl-body"><div className="tl-detail">No activity yet</div></div>
@@ -184,31 +172,6 @@ export default function PolicyView({ policy, ledger, history, onRefresh }: Props
           )}
         </ul>
       </div>
-
-      {/* ── Rejected Events ────────────────────────────────────────────── */}
-      {policy.rejected_events.length > 0 && (
-        <div className="card">
-          <div className="card-title"><span className="dot" style={{ background: "#ef4444" }} />Rejected Events</div>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Idempotency Key</th>
-                <th>External ID</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {policy.rejected_events.map((r) => (
-                <tr key={r.id}>
-                  <td className="mono">{r.id}</td>
-                  <td className="mono">{r.external_payment_id ?? "—"}</td>
-                  <td style={{ color: "#f87171" }}>{r.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {/* ── Ledger Detail ──────────────────────────────────────────────── */}
       {ledger && (

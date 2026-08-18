@@ -39,6 +39,24 @@ describe("daysBetween", () => {
   });
 });
 
+describe("parseDate format validation", () => {
+  it("rejects a datetime string instead of a date", () => {
+    expect(() => parseDate("2026-07-01T00:00:00Z")).toThrow("expected YYYY-MM-DD");
+  });
+
+  it("rejects a partial date", () => {
+    expect(() => parseDate("2026-07")).toThrow("expected YYYY-MM-DD");
+  });
+
+  it("rejects free text", () => {
+    expect(() => parseDate("next monday")).toThrow("expected YYYY-MM-DD");
+  });
+
+  it("accepts a valid YYYY-MM-DD string", () => {
+    expect(() => parseDate("2026-07-01")).not.toThrow();
+  });
+});
+
 describe("calculateProratedDelta — sample from spec", () => {
   const BASE = {
     termStart: "2026-01-01",

@@ -13,20 +13,12 @@ export interface Policy {
   open_balance_cents: number;
   ledger: LedgerSummary;
   history: { valid: boolean; event_count: number; failed_at?: number };
-  rejected_events: RejectedEvent[];
   suggested_action: string;
 }
 
 export interface Endorsement {
   id: string;
   billing_document: BillingDocument | null;
-}
-
-export interface RejectedEvent {
-  id: string;
-  external_payment_id: string | null;
-  reason: string;
-  created_at: string;
 }
 
 export interface BillingDocument {

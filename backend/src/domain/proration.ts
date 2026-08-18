@@ -13,10 +13,13 @@ export function roundHalfAwayFromZero(x: number): number {
 
 /**
  * Parse an ISO date string (YYYY-MM-DD) without timezone shifting.
- * Using new Date("YYYY-MM-DD") treats the value as UTC midnight, which is
- * safe for date-only arithmetic.
+ * Validates format strictly before parsing to prevent unexpected
+ * behaviour from the Date constructor's loose input handling.
  */
 export function parseDate(iso: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    throw new Error(`Invalid date format: "${iso}" — expected YYYY-MM-DD`);
+  }
   const d = new Date(iso + "T00:00:00Z");
   if (isNaN(d.getTime())) {
     throw new Error(`Invalid date: ${iso}`);

@@ -125,7 +125,12 @@ describe("Payment idempotency and currency validation", () => {
     seedPolicy(db);
   });
 
-  function insertPayment(db: Database.Database, idemKey: string, currency: string) {
+  function insertPayment(
+    db: Database.Database,
+    idemKey: string,
+    currency: string,
+    externalId = idemKey   // default: same as idempotency key
+  ) {
     const polCurrency = (db.prepare("SELECT currency FROM policies WHERE id = 'POL-1001'").get() as any).currency;
     if (currency.toUpperCase() !== polCurrency) {
       throw new Error(`Currency mismatch: policy is ${polCurrency}, payment is ${currency}`);
@@ -133,7 +138,7 @@ describe("Payment idempotency and currency validation", () => {
     db.prepare(
       `INSERT INTO payments (policy_id, idempotency_key, external_payment_id, amount_cents, currency, received_at, status)
        VALUES ('POL-1001', ?, ?, 12099, ?, '2026-07-03T18:30:00Z', 'applied')`
-    ).run(idemKey, idemKey, currency.toUpperCase());
+    ).run(idemKey, externalId, currency.toUpperCase());
   }
 
   it("duplicate payment key → existing row, no second insert", () => {
@@ -161,5 +166,14 @@ describe("Payment idempotency and currency validation", () => {
 
   it("currency comparison is case-insensitive", () => {
     expect(() => insertPayment(db, "PAY-9003", "usd")).not.toThrow();
+  });
+
+  it("same external_payment_id with a different idempotency_key is rejected by UNIQUE index", () => {
+    insertPayment(db, "PAY-IDEM-A", "USD", "EXT-001");
+    // Same external payment, different caller key — must throw UNIQUE violation
+    expect(() => insertPayment(db, "PAY-IDEM-B", "USD", "EXT-001")).toThrow();
+    // Only one row should exist
+    const count = (db.prepare("SELECT COUNT(*) as c FROM payments").get() as any).c;
+    expect(count).toBe(1);
   });
 });
