@@ -4,7 +4,7 @@
  * Safe to run multiple times (INSERT OR IGNORE).
  */
 
-import { getDb } from "./db";
+import { getDb } from "./db/connection";
 
 const POLICY = {
   policy_id: "POL-1001",

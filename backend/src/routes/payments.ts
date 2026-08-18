@@ -1,11 +1,11 @@
 import { Router, Request, Response } from "express";
-import { getDb } from "../db";
+import { getDb } from "../db/connection";
 import {
   canonicalPayload,
   computeEventHash,
   GENESIS_HASH,
-} from "../services/hashChain";
-import { insertLedgerTransaction } from "../services/accounting";
+} from "../domain/hashChain";
+import { insertLedgerTransaction } from "../domain/accounting";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router({ mergeParams: true });

@@ -31,7 +31,7 @@ function runMigrations(db: Database.Database): void {
     )
   `);
 
-  const migrationsDir = path.join(__dirname, "../migrations");
+  const migrationsDir = path.join(__dirname, "../../migrations");
   const files = fs
     .readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
@@ -58,7 +58,7 @@ export function createTestDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
-  const migrationsDir = path.join(__dirname, "../migrations");
+  const migrationsDir = path.join(__dirname, "../../migrations");
   const files = fs
     .readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))

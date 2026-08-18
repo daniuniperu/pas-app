@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { getDb } from "./db";
+import { getDb } from "./db/connection";
 import endorsementsRouter from "./routes/endorsements";
 import paymentsRouter from "./routes/payments";
 import policiesRouter from "./routes/policies";

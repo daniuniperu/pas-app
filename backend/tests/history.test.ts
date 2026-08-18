@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestDb } from "../src/db";
+import { createTestDb } from "../src/db/connection";
 import type Database from "better-sqlite3";
 import {
   canonicalPayload,
@@ -7,7 +7,7 @@ import {
   verifyChain,
   GENESIS_HASH,
   StoredEvent,
-} from "../src/services/hashChain";
+} from "../src/domain/hashChain";
 
 describe("verifyChain", () => {
   it("accepts an empty event list as valid", () => {

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { getDb } from "../db";
-import { verifyChain, StoredEvent } from "../services/hashChain";
+import { getDb } from "../db/connection";
+import { verifyChain, StoredEvent } from "../domain/hashChain";
 
 const router = Router({ mergeParams: true });
 

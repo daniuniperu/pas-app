@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestDb } from "../src/db";
+import { createTestDb } from "../src/db/connection";
 import type Database from "better-sqlite3";
-import { insertLedgerTransaction, endorsementAccounts } from "../src/services/accounting";
+import { insertLedgerTransaction, endorsementAccounts } from "../src/domain/accounting";
 import crypto from "crypto";
 
 function seedPolicy(db: Database.Database) {

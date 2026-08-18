@@ -3,15 +3,15 @@
  * These tests call the route handlers directly against an in-memory DB.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestDb } from "../src/db";
+import { createTestDb } from "../src/db/connection";
 import type Database from "better-sqlite3";
 import {
   canonicalPayload,
   computeEventHash,
   GENESIS_HASH,
-} from "../src/services/hashChain";
-import { insertLedgerTransaction } from "../src/services/accounting";
-import { calculateProratedDelta } from "../src/services/proration";
+} from "../src/domain/hashChain";
+import { insertLedgerTransaction } from "../src/domain/accounting";
+import { calculateProratedDelta } from "../src/domain/proration";
 
 // We test the business-logic directly (not the HTTP layer) to keep tests fast
 // and independent of Express wiring. HTTP-level integration would require

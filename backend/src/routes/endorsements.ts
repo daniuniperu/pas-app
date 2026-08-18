@@ -1,15 +1,15 @@
 import { Router, Request, Response } from "express";
-import { getDb } from "../db";
-import { calculateProratedDelta } from "../services/proration";
+import { getDb } from "../db/connection";
+import { calculateProratedDelta } from "../domain/proration";
 import {
   canonicalPayload,
   computeEventHash,
   GENESIS_HASH,
-} from "../services/hashChain";
+} from "../domain/hashChain";
 import {
   insertLedgerTransaction,
   endorsementAccounts,
-} from "../services/accounting";
+} from "../domain/accounting";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router({ mergeParams: true });

@@ -4,7 +4,7 @@ import {
   roundHalfAwayFromZero,
   daysBetween,
   parseDate,
-} from "../src/services/proration";
+} from "../src/domain/proration";
 
 describe("roundHalfAwayFromZero", () => {
   it("rounds positive .5 up", () => {
